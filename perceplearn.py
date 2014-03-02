@@ -26,40 +26,59 @@ def train():
             class_and_text = line.split(' ', 1) # split the first word (the class identifier) from the rest of the text
             classname = class_and_text[0]
             text = class_and_text[1]
-            
+            print classname
+
             # search for the class in the list of possible classes
             class_index = -1
             for c in classes:
                 if classname == c.name:
                     class_index = classes.index(c)
-            
+
+            # class doesn't exist yet and we should add a new one
             if class_index == -1:
                 new_class = Classification(classname)
                 classes.append(new_class)
                 class_index = classes.index(new_class) # get the index of the class so we add the features to the correct index
 
-            for word in text.split(' '):
-                word = word.rstrip('\n') # strip out newlines, which aren't handled well by the model
-                if (word == "") or (word == " "):
-                    continue
+            # classify 
+            score_by_class = []
+            for class_index,class_type in enumerate(classes):
+                score = 0
+                for word in text.split(' '):
+                    word = word.rstrip('\n') # strip out newlines, which aren't handled well by the model
+                    if (word == "") or (word == " "):
+                        continue
+
+                    if word in class_type.weights:
+                        score += class_type.weights[word]
+
+                score_by_class.append(score)
+
+            classified = max(score_by_class)
+            classified_index = score_by_class.index(classified)
                 
-                # update weights for existing word
-                if word in classes[class_index].weights:
-                    classes[class_index].weights[word] += 1 
-
-                    for index, c in enumerate(classes):
-                        if index == class_index:
+            # check and update
+            if classes[classified_index].name != classname:
+                print "Incorrectly classified as ", classes[classified_index].name
+                for class_index, class_type in enumerate(classes):
+                    for word in text.split(' '):
+                        word = word.rstrip('\n') # strip out newlines, which aren't handled well by the model
+                        if (word == "") or (word == " "):
                             continue
-                        c.weights[word] -= 1 
-
-                # add new word to weight vector
-                else:
-                    classes[class_index].weights[word] = 1 
-                    
-                    for index,c in enumerate(classes):
-                        if index == class_index:
-                            continue
-                        c.weights[word] = 0                     
+                        
+                        if word in classes[class_index].weights:
+                            if class_type.name == classname:
+                                classes[class_index].weights[word] += 1 
+                            else:
+                                classes[class_index].weights[word] -= 1
+                                    
+                        # add new word to weight vector
+                        else:
+                            if class_type.name == classname:
+                                classes[class_index].weights[word] = 1 
+                            else:
+                                classes[class_index].weights[word] = -1
+ 
 
 
     # Generate the classification model
